@@ -14,14 +14,14 @@ let bgmStarted = false;
 // --- PLAYER and CONTROLS ---
 const PLAYER_RADIUS = 38, MOVE_SPEED = 7, JUMP_POWER = 16, GRAVITY = 0.65;
 const actionKeys = {
-  player1: { left: 65, right: 68, up: 87, special: 83, bump: 81, set: 69, spike: 82, serve: 32 },
-  player2: { left: 37, right: 39, up: 38, special: 40, bump: 191, set: 190, spike: 188, serve: 13 }
+  player1: { left: 65, right: 68, up: 87, special: 83, bump: 81, set: 69, spike: 82, serve: 32, dive: 16 },
+  player2: { left: 37, right: 39, up: 38, special: 40, bump: 191, set: 190, spike: 188, serve: 13, dive: 16 }
 };
 let keys = {};
 
 let players = [
-  { x: 180, y: 0, vx: 0, vy: 0, color: "#0288d1", controls: actionKeys.player1, grounded: true, canJump: true, specialReady: false, name: "Player 1", team: 0 },
-  { x: 820, y: 0, vx: 0, vy: 0, color: "#c62828", controls: actionKeys.player2, grounded: true, canJump: true, specialReady: false, name: "Player 2", team: 1 }
+  { x: 180, y: 0, vx: 0, vy: 0, color: "#0288d1", controls: actionKeys.player1, grounded: true, canJump: true, specialReady: false, name: "Player 1", team: 0, dive: false, diveTimer: 0 },
+  { x: 820, y: 0, vx: 0, vy: 0, color: "#c62828", controls: actionKeys.player2, grounded: true, canJump: true, specialReady: false, name: "Player 2", team: 1, dive: false, diveTimer: 0 }
 ];
 
 // --- BALL ---
@@ -52,6 +52,7 @@ function startGame(mode) {
   document.getElementById("menu").style.display = "none";
   document.getElementById("instructions").style.display = "none";
   document.getElementById("settings").style.display = "none";
+  document.getElementById("customization").style.display = "none";
   document.getElementById("gameArea").style.display = "";
   gameMode = mode;
   round = 1;
@@ -88,9 +89,11 @@ function update() {
 }
 
 function handlePlayerInput(p, idx) {
-  // Move left/right
-  if (keys[p.controls.left]) p.x -= MOVE_SPEED;
-  if (keys[p.controls.right]) p.x += MOVE_SPEED;
+  // Move left/right unless diving
+  if (!p.dive) {
+    if (keys[p.controls.left]) p.x -= MOVE_SPEED;
+    if (keys[p.controls.right]) p.x += MOVE_SPEED;
+  }
   // Jump
   if (keys[p.controls.up] && p.grounded && p.canJump) {
     p.vy = -JUMP_POWER;
@@ -107,6 +110,13 @@ function handlePlayerInput(p, idx) {
   if (keys[p.controls.set]) tryAction("set", p, idx);
   if (keys[p.controls.spike]) tryAction("spike", p, idx);
   if (keys[p.controls.special]) tryAction("special", p, idx);
+  // Dive (only allow if not already diving and on ground)
+  if (keys[p.controls.dive] && !p.dive && p.grounded) {
+    p.dive = true;
+    p.diveTimer = 14; // frames
+    p.vx = (idx === 0 ? 16 : -16); // dive direction
+    p.vy = -6;
+  }
 
   // Keep players within their half
   const leftBound = idx === 0 ? PLAYER_RADIUS : NET.x + NET.width + PLAYER_RADIUS;
@@ -138,7 +148,7 @@ function tryAction(type, p, idx) {
     let force = { x: 0, y: 0 };
     if (type === "bump") force = { x: (ball.x - p.x) * 0.15, y: -14 };
     if (type === "set") force = { x: (ball.x - p.x) * 0.09, y: -20 };
-    if (type === "spike") force = { x: (ball.x - p.x) * 0.1, y: -25 };
+    if (type === "spike" || type === "hit") force = { x: (ball.x - p.x) * 0.1, y: -25 };
     if (type === "special" && activePowerUps[idx]) {
       force = { x: (ball.x - p.x) * 0.25, y: -35 };
       activePowerUps[idx] = null;
@@ -157,12 +167,23 @@ function tryAction(type, p, idx) {
 
 // --- PHYSICS ---
 function applyPhysics(p) {
+  // Dive logic
+  if (p.dive) {
+    p.diveTimer--;
+    p.x += p.vx * 0.9;
+    if (p.diveTimer <= 0 || !p.grounded) {
+      p.dive = false;
+      p.vx = 0;
+    }
+  }
+  // Gravity and ground
   p.vy += GRAVITY;
   p.y += p.vy;
   if (p.y > GROUND) {
     p.y = GROUND;
     p.vy = 0;
     p.grounded = true;
+    if (!p.dive) p.vx = 0;
   }
 }
 
@@ -209,9 +230,15 @@ function updateBall() {
       let dx = ball.x - p.x, dy = ball.y - p.y;
       let dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < PLAYER_RADIUS + ball.radius) {
-        // Default bounce
-        ball.vx = dx * 0.16;
-        ball.vy = -Math.abs(dy * 0.25) - 10;
+        // If diving, stronger bump
+        if (p.dive) {
+          ball.vx = dx * 0.22;
+          ball.vy = -Math.abs(dy * 0.32) - 15;
+        } else {
+          // Default bounce
+          ball.vx = dx * 0.16;
+          ball.vy = -Math.abs(dy * 0.25) - 10;
+        }
         ball.lastHit = idx;
         ball.canBeHit = false;
         setTimeout(() => ball.canBeHit = true, 350);
@@ -287,8 +314,8 @@ function isServeAllowed(idx) {
   return serveTeam === idx && Math.abs(ball.vx) + Math.abs(ball.vy) < 0.1 && !gameStarted();
 }
 function resetPlayers() {
-  players[0].x = 180; players[0].y = GROUND; players[0].vy = 0; players[0].vx = 0; players[0].grounded = true;
-  players[1].x = 820; players[1].y = GROUND; players[1].vy = 0; players[1].vx = 0; players[1].grounded = true;
+  players[0].x = 180; players[0].y = GROUND; players[0].vy = 0; players[0].vx = 0; players[0].grounded = true; players[0].dive = false;
+  players[1].x = 820; players[1].y = GROUND; players[1].vy = 0; players[1].vx = 0; players[1].grounded = true; players[1].dive = false;
 }
 
 // --- DRAW ---
@@ -312,18 +339,33 @@ function draw() {
   });
   // Players
   players.forEach((p, idx) => {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, PLAYER_RADIUS, 0, Math.PI * 2);
-    ctx.fillStyle = p.color;
-    ctx.fill();
-    ctx.strokeStyle = "#333";
-    ctx.stroke();
+    ctx.save();
+    if (p.dive) {
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.team === 0 ? -1 : 1) * Math.PI / 8);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, PLAYER_RADIUS * 1.2, PLAYER_RADIUS * 0.7, 0, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, PLAYER_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.strokeStyle = "#333";
+      ctx.stroke();
+    }
     // Powerup indicator
     if (activePowerUps[idx]) {
       ctx.font = "24px Arial";
       ctx.fillStyle = "#ffd600";
       ctx.fillText("★", p.x - 14, p.y - 50);
     }
+    // Draw player name
+    ctx.font = "16px Arial";
+    ctx.fillStyle = "#333";
+    ctx.fillText(p.name, p.x - 30, p.y - PLAYER_RADIUS - 10);
   });
   // Ball
   ctx.beginPath();
@@ -349,6 +391,18 @@ function showSettings() {
   document.getElementById("menu").style.display = "none";
   document.getElementById("settings").style.display = "";
 }
+function showCustomization() {
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("customization").style.display = "";
+}
+function applyCustomization() {
+  players[0].name = document.getElementById("p1name").value || "Player 1";
+  players[0].color = document.getElementById("p1color").value || "#0288d1";
+  players[1].name = document.getElementById("p2name").value || "Player 2";
+  players[1].color = document.getElementById("p2color").value || "#c62828";
+  document.getElementById("customization").style.display = "none";
+  document.getElementById("menu").style.display = "";
+}
 function saveSettings() {
   const sel = document.getElementById("difficultySelect");
   difficulty = sel.value;
@@ -358,6 +412,7 @@ function goToMenu() {
   document.getElementById("menu").style.display = "";
   document.getElementById("instructions").style.display = "none";
   document.getElementById("settings").style.display = "none";
+  document.getElementById("customization").style.display = "none";
   document.getElementById("gameArea").style.display = "none";
   running = false;
 }
