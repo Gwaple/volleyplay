@@ -1,12 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Ultimate Volleyball Game</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <h1>🏐 Ultimate Volleyball Game</h1>
+<div id="customization" style="display:none;">
+  <h2>Customize Players</h2>
+  <form id="customForm" onsubmit="event.preventDefault(); applyCustomization();">
+    <div>
+      <label>Player 1 Name: <input type="text" id="p1name" value="Player 1"></label>
+      <label>Color: <input type="color" id="p1color" value="#0288d1"></label>
+    </div>
+    <div>
+      <label>Player 2 Name: <input type="text" id="p2name" value="Player 2"></label>
+      <label>Color: <input type="color" id="p2color" value="#c62828"></label>
+    </div>
+    <button type="submit">Save & Return</button>
+  </form>
+  <button onclick="goToMenu()">Cancel</button>
+</div>
   <div id="menu">
     <button onclick="startGame('single')">Single Player (vs Computer)</button>
     <button onclick="startGame('local')">Two Player (Same Computer)</button>
