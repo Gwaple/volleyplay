@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ultimate Volleyball Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>🏐 Ultimate Volleyball Game</h1>
+  <div id="menu">
+    <button onclick="startGame('single')">Single Player (vs Computer)</button>
+    <button onclick="startGame('local')">Two Player (Same Computer)</button>
+    <button onclick="showInstructions()">How To Play</button>
+    <button onclick="showSettings()">Settings</button>
+  </div>
+  <div id="gameArea" style="display:none;">
+    <canvas id="gameCanvas" width="1000" height="550"></canvas>
+    <div id="scoreboard"></div>
+    <button id="restartBtn" onclick="restartGame()">Restart</button>
+    <button id="menuBtn" onclick="goToMenu()">Menu</button>
+  </div>
+  <div id="instructions" style="display:none;">
+    <h2>Instructions</h2>
+    <ul>
+      <li><b>Player 1:</b> A/D to move, W to jump, S for special, Q/E for bump/set/spike</li>
+      <li><b>Player 2:</b> Left/Right to move, Up to jump, Down for special, / and . for bump/set/spike</li>
+      <li>Spacebar or Enter to serve</li>
+      <li>Collect power-ups for special moves</li>
+    </ul>
+    <button onclick="goToMenu()">Back</button>
+  </div>
+  <div id="settings" style="display:none;">
+    <h2>Settings</h2>
+    <label>Difficulty:
+      <select id="difficultySelect">
+        <option value="easy">Easy</option>
+        <option value="normal">Normal</option>
+        <option value="hard">Hard</option>
+      </select>
+    </label>
+    <button onclick="saveSettings()">Save</button>
+    <button onclick="goToMenu()">Back</button>
+  </div>
+  <audio id="sfx-hit" src="assets/hit.wav"></audio>
+  <audio id="sfx-score" src="assets/score.wav"></audio>
+  <audio id="sfx-power" src="assets/powerup.wav"></audio>
+  <audio id="bgm" src="assets/bgm.mp3" loop></audio>
+  <script src="game.js"></script>
+</body>
+</html>
